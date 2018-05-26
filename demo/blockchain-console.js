@@ -2,17 +2,8 @@
 * @Author: amitshah
 * @Date:   2018-05-21 22:01:45
 * @Last Modified by:   amitshah
-* @Last Modified time: 2018-05-25 00:50:12
+* @Last Modified time: 2018-05-26 01:46:01
 */
-
-
-// var HumanStandardTokenJson = require("./smart-contracts/build/contracts/HumanStandardToken.json");
-// var StandardTokenJson = require("./build/contracts/StandardToken.json");
-// var ChannelManagerJson =require("./build/contracts/ChannelManagerContract.json");
-// var ChannelManagerJson = require("./build/contracts/ChannelManagerLibrary.json");
-// var NettingChannelJson =require("./build/contracts/NettingChannelContract.json");
-// var NettingChannelJson = require("./build/contracts/NettingChannelLibrary.json");
-// var UtilsJson = require("./build/contracts/Utils.json");
 
 const process = require("process");
 const fs = require("fs");
@@ -82,21 +73,25 @@ var channelManager = null;
 
 
 
-app.use(async function (req, res, next) {
-  req._bc = {};
-  req._bc.nonce = await bcs.getTransactionCount(wallet.getAddress());
-  req._bc.balance = await bcs.getBalance(wallet.getAddress());
-  if(got){
-	  req._bc.gotBalance = (await bcs.getTokenBalance(util.toBuffer(got.address),wallet.getAddress(), wallet.getAddress())).balance;
-  }if(not){
-  	req._bc.notBalance = (await bcs.getTokenBalance(util.toBuffer(not.address),wallet.getAddress(), wallet.getAddress())).balance;
-  	
-  }
-  next()
+app.use( async function (req, res, next) {
+	
+	
+	  res.locals._bc = {};
+	  res.locals._bc.nonce = await bcs.getTransactionCount(wallet.getAddress());
+	  res.locals._bc.balance = await bcs.getBalance(wallet.getAddress());
+	  if(got){
+		  res.locals._bc.gotBalance = (await bcs.getTokenBalance(util.toBuffer(got.address),wallet.getAddress(), wallet.getAddress())).balance;
+	  }if(not){
+	  	res.locals._bc.notBalance = (await bcs.getTokenBalance(util.toBuffer(not.address),wallet.getAddress(), wallet.getAddress())).balance;	  	
+	  }
+	  next();
+	
+  
+ 
 })
 
 app.get("/", async(req,res)=>{
-	res.send(req._bc);
+	res.send(res.locals._bc);
 })
 
 app.get('/initialize', async (req, res) => {
@@ -132,16 +127,19 @@ app.get('/state', async (req,res)=>{
 
 });
 
-app.get("/approve",async(req,res)=>{
-	req.setTimeout(0);
-	const token = req.query.token;
-	const spender = req.query.spender;
-	const amount = req.query.amount;
-	var result = await bcs.approve(new util.BN(req._bn.nonce), new util.BN(1000000000), 
-		token, 
-		spender, 
-		new util.BN(amount));
-	res.send(result);
+app.get("/approve",async (req,res)=>{
+		req.setTimeout(0);
+		const token = req.query.token;
+		const spender = req.query.spender;
+		const amount = req.query.amount;
+		const nonce = new util.BN(res.locals._bc.nonce);
+		var result = await bcs.approve(nonce, new util.BN(1000000000), 
+			token, 
+			spender, 
+			new util.BN(amount));
+		res.send(result);
+	
+	
 });
 
 app.get("/createChannel",async(req,res)=>{
@@ -162,7 +160,7 @@ app.get("/createChannel",async(req,res)=>{
 app.get("/deposit",async(req,res)=>{
 	req.setTimeout(0);
 	var channel = util.toBuffer(util.addHexPrefix(req.query.channel));
-	const amount = new util.BN(parseInt(req.query.amount));
+	const amount = new util.BN(req.query.amount);
 	var result = await bcs.deposit(new util.BN(req.query.nonce), new util.BN(1000000000), 
 		channel, 
 		amount);
@@ -171,39 +169,4 @@ app.get("/deposit",async(req,res)=>{
 
 app.listen(3000, () => console.log('Example app listening on port 3000'))
 
-// var provider = new WalletProvider(wallet, "https://ropsten.infura.io/");
 
-// // Step 2: Turn that contract into an abstraction I can use
-
-// var StandardToken = contract(StandardTokenContract);
-
-// // Step 3: Provision the contract with a web3 provider
-// MyContract.setProvider(new Web3.providers.HttpProvider("http://127.0.0.1:8545"));
-
-// // Step 4: Use the contract!
-// MyContract.deployed().then(function(deployed) {
-//   return deployed.someFunction();
-// });
-
-// module.exports = function(deployer,network) {
-	
-//     deployer.then(async () => {
-//       await deployer.deploy(StandardToken)
-//       await deployer.link(StandardToken, HumanStandardToken);
-//       await deployer.deploy(HumanStandardToken, 100000000,"GoNetwork",1,"$GOT");
-//       var gotToken= await HumanStandardToken.deployed();
-//       console.log("Ropsten Gotoken Address:"+gotToken.address.toString('hex'));
-
-//       var testToken = await HumanStandardToken.new(5000000,"TEST_TOKEN",1, "$NO");
-//       console.log("Ropsten ERC20 Token Address:" + testToken.address.toString('hex') );
-      
-//       await  deployer.link(HumanStandardToken, NettingChannelLibrary);
-//       await deployer.deploy(NettingChannelLibrary);
-//       await deployer.link(NettingChannelLibrary,NettingChannelContract);
-//       await deployer.link(NettingChannelLibrary, ChannelManagerLibrary);   
-//       await deployer.deploy(ChannelManagerLibrary);
-//       await deployer.link(ChannelManagerLibrary, ChannelManagerContract);
-//       await deployer.deploy(ChannelManagerContract, gotToken.address, testToken.address);
-//     });
-//   }   
-// };
